@@ -1,0 +1,690 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DünyaBank & ŞehirPay</title>
+
+  <!-- EmailJS SDK Entegrasyonu -->
+  <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
+  <script type="text/javascript">
+    (function(){
+      emailjs.init("38SjT7GlTWSAXfiWT");
+    })();
+  </script>
+
+  <!-- QR Kod Oluşturma ve Kamera Tarama Kütüphaneleri -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <script src="https://unpkg.com/html5-qrcode"></script>
+
+  <style>
+    :root {
+      --bg-color: #0f172a;
+      --card-bg: #1e293b;
+      --primary: #3b82f6;
+      --primary-hover: #2563eb;
+      --accent: #10b981;
+      --danger: #ef4444;
+      --text: #f8fafc;
+      --text-dim: #94a3b8;
+      --gold: #f59e0b;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+    body { background-color: var(--bg-color); color: var(--text); display: flex; justify-content: center; align-items: center; min-height: 100vh; padding: 15px; }
+    .app-container { width: 100%; max-width: 480px; background: var(--card-bg); border-radius: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.5); overflow: hidden; padding: 20px; position: relative; }
+    h1, h2, h3, h4 { text-align: center; margin-bottom: 15px; }
+    .badge { display: inline-block; padding: 4px 10px; border-radius: 12px; font-size: 0.8rem; font-weight: bold; margin-bottom: 10px; }
+    .badge-gov { background: var(--gold); color: #000; }
+    .badge-bank { background: var(--accent); color: #000; }
+    .badge-user { background: var(--primary); color: #fff; }
+    .badge-job { background: #6366f1; color: #fff; margin-left: 5px; }
+    .form-group { margin-bottom: 15px; }
+    label { display: block; margin-bottom: 5px; font-size: 0.9rem; color: var(--text-dim); }
+    input, select { width: 100%; padding: 12px; border-radius: 10px; border: 1px solid #334155; background: #0f172a; color: #fff; font-size: 1rem; outline: none; }
+    input:focus, select:focus { border-color: var(--primary); }
+    button { width: 100%; padding: 12px; border-radius: 10px; border: none; background: var(--primary); color: white; font-weight: bold; font-size: 1rem; cursor: pointer; transition: 0.2s; margin-top: 5px; }
+    button:hover { background: var(--primary-hover); }
+    button.btn-danger { background: var(--danger); }
+    button.btn-accent { background: var(--accent); color: #000; }
+    button.btn-gold { background: var(--gold); color: #000; }
+    .hidden { display: none !important; }
+    .card-balance { background: linear-gradient(135deg, #1e3a8a, #3b82f6); padding: 20px; border-radius: 15px; text-align: center; margin-bottom: 20px; }
+    .card-balance.gov { background: linear-gradient(135deg, #78350f, #f59e0b); }
+    .card-balance.bank { background: linear-gradient(135deg, #064e3b, #10b981); }
+    .balance-amount { font-size: 2.2rem; font-weight: bold; margin: 10px 0; }
+    .history-list { max-height: 160px; overflow-y: auto; background: #0f172a; border-radius: 10px; padding: 10px; font-size: 0.85rem; }
+    .history-item { padding: 8px; border-bottom: 1px solid #1e293b; display: flex; justify-content: space-between; }
+    .quick-login-box { margin-top: 15px; padding-top: 15px; border-top: 1px dashed #334155; }
+    .timer-text { font-weight: bold; color: var(--gold); text-align: center; margin: 10px 0; font-size: 1.1rem; }
+    .qr-box { background: #ffffff; padding: 15px; border-radius: 12px; display: flex; justify-content: center; align-items: center; margin: 15px auto; width: 200px; height: 200px; }
+    #reader { width: 100%; border-radius: 12px; overflow: hidden; margin-bottom: 10px; }
+  </style>
+</head>
+<body>
+
+<div class="app-container">
+
+  <!-- EKRAN 1: GİRİŞ YAP EKRANI -->
+  <div id="screen-login">
+    <h2>🏛️ DünyaBank</h2>
+    <p style="text-align: center; color: var(--text-dim); margin-bottom: 20px; font-size: 0.9rem;">Vatandaş Giriş Paneli</p>
+    
+    <div class="form-group">
+      <label>Kullanıcı Adı</label>
+      <input type="text" id="login-username" placeholder="Kullanıcı adınızı girin">
+    </div>
+    
+    <div class="form-group">
+      <label>Şifre</label>
+      <input type="password" id="login-password" placeholder="Şifrenizi girin">
+    </div>
+    
+    <button onclick="handleLogin()">Giriş Yap</button>
+    <button onclick="switchScreen('screen-login', 'screen-register')" style="background: transparent; border: 1px solid var(--primary); margin-top: 10px;">Hesabın Yok mu? Kayıt Ol</button>
+
+    <div class="quick-login-box">
+      <p style="font-size: 0.8rem; color: var(--text-dim); text-align: center; margin-bottom: 8px;">Resmi Kurum Yönetimi</p>
+      <button onclick="openAdminModal('Basbakan')" class="btn-gold" style="font-size: 0.85rem; padding: 10px;">🏛️ Başbakanlık Yetkili Girişi</button>
+      <button onclick="openAdminModal('MerkezBankasi')" class="btn-accent" style="font-size: 0.85rem; padding: 10px; margin-top: 8px;">🏦 TCMB Banka Yetkili Girişi</button>
+    </div>
+  </div>
+
+  <!-- EKRAN 2: ÖZEL KAYIT OLMA EKRANI -->
+  <div id="screen-register" class="hidden">
+    <h2>📝 Yeni Kayıt</h2>
+    <p style="text-align: center; color: var(--text-dim); margin-bottom: 20px; font-size: 0.9rem;">Şehir Sistemine Kaydolun</p>
+
+    <div class="form-group">
+      <label>Yeni Kullanıcı Adı</label>
+      <input type="text" id="reg-username" placeholder="Kullanıcı adı belirleyin">
+    </div>
+
+    <div class="form-group">
+      <label>Yeni Şifre</label>
+      <input type="password" id="reg-password" placeholder="Şifre belirleyin">
+    </div>
+
+    <button onclick="handleRegister()" class="btn-accent">Kayıt Ol ve Başla</button>
+    <button onclick="switchScreen('screen-register', 'screen-login')" style="background: transparent; border: 1px solid #334155; margin-top: 8px;">Giriş Ekranına Dön</button>
+  </div>
+
+  <!-- EKRAN 3: YÖNETİCİ ŞİFRE GİRİŞİ -->
+  <div id="screen-admin-login" class="hidden">
+    <h3 id="admin-title">🏛️ Yönetici Girişi</h3>
+    <p style="text-align: center; color: var(--text-dim); margin-bottom: 15px; font-size: 0.85rem;">Lütfen yetkili hesap bilgilerinizi girin</p>
+
+    <div class="form-group">
+      <label>Yönetici Hesap Adı</label>
+      <input type="text" id="admin-username" placeholder="Hesap adını girin (Basbakan / MerkezBankasi)">
+    </div>
+
+    <div class="form-group">
+      <label>Yönetici Şifresi</label>
+      <input type="password" id="admin-password" placeholder="Şifrenizi girin">
+    </div>
+
+    <button onclick="verifyAdminStep1()">Devam Et (2FA Doğrulama)</button>
+    <button onclick="switchScreen('screen-admin-login', 'screen-login')" style="background: transparent; border: 1px solid #334155; margin-top: 8px;">İptal / Geri</button>
+  </div>
+
+  <!-- EKRAN 4: 2 AŞAMALI DOĞRULAMA (2FA) -->
+  <div id="screen-2fa" class="hidden">
+    <h3>🔒 2 Aşamalı Doğrulama</h3>
+    <p style="text-align: center; color: var(--text-dim); font-size: 0.85rem; margin-bottom: 10px;">
+      <b>cinargulmez34@gmail.com</b> adresine gönderilen 6 haneli doğrulama kodunu girin.
+    </p>
+
+    <div class="timer-text">Kalan Süre: <span id="2fa-timer">120</span> sn</div>
+
+    <div class="form-group">
+      <label>Güvenlik Kodu</label>
+      <input type="text" id="2fa-code-input" maxlength="6" placeholder="6 Haneli Kod" style="text-align: center; font-size: 1.3rem; letter-spacing: 4px;">
+    </div>
+
+    <button onclick="verify2FACode()" class="btn-accent">Sisteme Giriş Yap</button>
+    <button onclick="resend2FACode()" style="background: #334155; margin-top: 8px; font-size: 0.9rem;">Tekrar Gönder</button>
+    <button onclick="switchScreen('screen-2fa', 'screen-login')" style="background: transparent; border: 1px solid var(--danger); color: var(--danger); margin-top: 8px; font-size: 0.85rem;">İptal</button>
+  </div>
+
+  <!-- EKRAN 5: ANA PANEL (DASHBOARD) -->
+  <div id="screen-dashboard" class="hidden">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+      <div>
+        <span id="user-badge" class="badge badge-user">Vatandaş</span>
+        <span id="job-badge" class="badge badge-job">Meslek</span>
+      </div>
+      <button onclick="handleLogout()" style="width: auto; padding: 5px 12px; font-size: 0.8rem; background: #334155;">Çıkış Yap</button>
+    </div>
+
+    <div id="balance-card" class="card-balance">
+      <p id="welcome-text">Hoş Geldiniz</p>
+      <div class="balance-amount"><span id="user-balance">0</span> ₺</div>
+      <p style="font-size: 0.8rem; opacity: 0.8;">Güncel Bakiye</p>
+    </div>
+
+    <!-- STANDART TRANSFER & QR ARAYÜZÜ (İSİM YAZMALI) -->
+    <div id="section-transfer" class="form-group">
+      <h3>💸 Para Transferi & QR Ödeme</h3>
+      <input type="text" id="transfer-target" placeholder="Alıcı Kullanıcı Adı" style="margin-bottom: 8px;">
+      <input type="number" id="transfer-amount" placeholder="Miktar (₺)" style="margin-bottom: 8px;">
+      <button onclick="sendMoney()">Para Gönder</button>
+      
+      <div style="display: flex; gap: 8px; margin-top: 10px;">
+        <button onclick="openQRGenerateModal()" class="btn-gold" style="flex: 1; font-size: 0.85rem;">📲 QR Kod Oluştur (Ödeme Al)</button>
+        <button onclick="openQRScannerModal()" class="btn-accent" style="flex: 1; font-size: 0.85rem;">📷 QR Kod Tarat (Ödeme Yap)</button>
+      </div>
+    </div>
+
+    <!-- BAŞBAKANLIK ÖZEL MESLEK ATAMA PANELİ (İSİM YAZMALI) -->
+    <div id="section-gov-job-assign" class="form-group hidden" style="border-top: 1px dashed var(--gold); padding-top: 12px; margin-top: 15px;">
+      <h3 style="color: var(--gold);">🏛️ Başbakanlık Meslek Yönetimi</h3>
+      <div style="background: #0f172a; padding: 10px; border-radius: 8px; margin-bottom: 12px;">
+        <p style="font-size: 0.85rem; color: var(--text-dim); margin-bottom: 6px;">Personel / Vatandaş Meslek Atama</p>
+        <input type="text" id="assign-user" placeholder="Kullanıcı Adı" style="margin-bottom: 6px;">
+        
+        <label>Atanacak Meslek</label>
+        <select id="assign-job" style="margin-bottom: 6px;">
+          <option value="Vatandaş">👤 Vatandaş</option>
+          <option value="Emniyet Personeli">👮 Emniyet Personeli</option>
+          <option value="Trafik Şube">🚔 Trafik Şube</option>
+          <option value="Hakim">👨‍⚖️ Hakim</option>
+          <option value="Avukat">⚖️ Avukat</option>
+          <option value="Dolmuş Şoförü">🚐 Dolmuş Şoförü</option>
+          <option value="Restorant Çalışanı">🍽️ Restorant Çalışanı</option>
+          <option value="Doktor / Hemşire">🩺 Doktor / Hemşire</option>
+          <option value="Banka Yetkilisi">🏦 Banka Yetkilisi</option>
+        </select>
+        <button onclick="assignJobToUser()" class="btn-gold" style="font-size: 0.85rem; padding: 8px;">Meslek Ata / Değiştir</button>
+      </div>
+    </div>
+
+    <!-- YETKİLİ CEZA KESME PANELİ (İSİM YAZMALI) -->
+    <div id="section-penalty-actions" class="form-group hidden" style="border-top: 1px dashed var(--danger); padding-top: 12px; margin-top: 15px;">
+      <h3 style="color: var(--danger);">🚨 Yetkili Ceza Kesme Paneli</h3>
+      <div style="background: #0f172a; padding: 10px; border-radius: 8px;">
+        <input type="text" id="penalty-target" placeholder="Ceza Kesilecek Kullanıcı Adı" style="margin-bottom: 8px;">
+        <input type="number" id="penalty-amount" placeholder="Ceza Miktarı (₺)" style="margin-bottom: 8px;">
+        <input type="text" id="penalty-reason" placeholder="Ceza Sebebi (Örn: Hız İhlali)" style="margin-bottom: 8px;">
+        <button onclick="issuePenalty()" class="btn-danger">Ceza Kes (TCMB'ye Aktarılır)</button>
+      </div>
+    </div>
+
+    <!-- İŞLEM & CEZA GEÇMİŞİ -->
+    <div class="form-group" style="margin-top: 15px;">
+      <h4 style="margin-bottom: 8px;">📋 İşlem / Ceza Kayıtları</h4>
+      <div id="history-container" class="history-list">
+        <div class="history-item">Henüz bir işlem yok.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- EKRAN 6: QR KOD OLUŞTURMA MODALI (ÖDEME ALMA) -->
+  <div id="screen-qr-generate" class="hidden">
+    <h3>📲 Ödeme Almak İçin QR Kod</h3>
+    <p style="text-align: center; color: var(--text-dim); font-size: 0.85rem;">Miktarı girip QR kod oluşturun. Müşteriniz/Alıcı telefonundan bu kodu okutsun.</p>
+    
+    <div class="form-group" style="margin-top: 15px;">
+      <label>İstenen Miktar (₺)</label>
+      <input type="number" id="qr-create-amount" placeholder="Alınacak tutarı girin">
+    </div>
+    
+    <button onclick="generateQRCodeNow()" class="btn-gold">QR Kod Üret</button>
+
+    <div id="qr-code-display" class="qr-box hidden"></div>
+    <p id="qr-status-text" style="text-align: center; font-size: 0.8rem; color: var(--accent);" class="hidden">Müşterinin okutması bekleniyor...</p>
+
+    <button onclick="switchScreen('screen-qr-generate', 'screen-dashboard')" style="background: transparent; border: 1px solid #334155; margin-top: 15px;">Geri Dön</button>
+  </div>
+
+  <!-- EKRAN 7: QR KOD TARAMA MODALI (ÖDEME YAPMA) -->
+  <div id="screen-qr-scan" class="hidden">
+    <h3>📷 QR Kod Tarat (Ödeme Yap)</h3>
+    <p style="text-align: center; color: var(--text-dim); font-size: 0.85rem; margin-bottom: 10px;">Satıcının/Alıcının ekranındaki QR kodu kameranıza doğrultun.</p>
+
+    <div id="reader"></div>
+
+    <button onclick="closeQRScanner()" style="background: transparent; border: 1px solid var(--danger); color: var(--danger); margin-top: 8px;">Taramayı İptal Et</button>
+  </div>
+
+</div>
+
+<script>
+  const BIN_ID = '67389a6be4101579cf795c72'; 
+  const API_KEY = '$2a$10$vNqS7iVqA4K2yJvN4Xw8U.3DqR8zGZz6Vq4G9m6H1L0A3P2N1m2O6';
+  
+  let appData = { users: {}, logs: [] };
+  let currentUser = null;
+  let targetAdminRole = null;
+  let html5QrcodeScanner = null;
+  
+  let generated2FACode = "";
+  let timerInterval = null;
+  let timeLeft = 120;
+  let syncInterval = null;
+
+  function switchScreen(hideId, showId) {
+    document.getElementById(hideId).classList.add('hidden');
+    document.getElementById(showId).classList.remove('hidden');
+  }
+
+  // SUNUCUDAN VERİ ÇEKME
+  async function loadData() {
+    try {
+      const res = await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}/latest?t=${Date.now()}`, {
+        headers: { 'X-Master-Key': API_KEY }
+      });
+      if (!res.ok) throw new Error("API yanıt vermedi");
+      const data = await res.json();
+      appData = data.record || {};
+      if (!appData.users) appData.users = {};
+      if (!appData.logs) appData.logs = [];
+
+      if (!appData.users['Basbakan']) {
+        await initDefaultAccounts();
+      }
+    } catch (e) {
+      console.log("Veri çekme hatası:", e);
+    }
+  }
+
+  // SUNUCUYA VERİ KAYDETME
+  async function saveData() {
+    try {
+      await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Master-Key': API_KEY
+        },
+        body: JSON.stringify(appData)
+      });
+    } catch (e) {
+      console.log("Kayıt güncellenirken hata oluştu");
+    }
+  }
+
+  async function initDefaultAccounts() {
+    appData.users['Basbakan'] = { pass: 'Bsk123123', balance: 1000000, role: 'gov', job: 'Başbakan' };
+    appData.users['MerkezBankasi'] = { pass: 'Tcmb123123', balance: 0, role: 'bank', job: 'TCMB Başkanı' };
+    await saveData();
+  }
+
+  // 3 SANİYEDE BİR CANLI SENKRONİZASYON
+  function startLiveSync() {
+    if (syncInterval) clearInterval(syncInterval);
+    syncInterval = setInterval(async () => {
+      if (currentUser) {
+        await loadData();
+        showDashboard();
+      }
+    }, 3000);
+  }
+
+  function openAdminModal(role) {
+    targetAdminRole = role;
+    switchScreen('screen-login', 'screen-admin-login');
+    document.getElementById('admin-username').value = "";
+    document.getElementById('admin-password').value = "";
+
+    if (role === 'Basbakan') {
+      document.getElementById('admin-title').innerText = "🏛️ Başbakanlık Girişi";
+    } else {
+      document.getElementById('admin-title').innerText = "🏦 Merkez Bankası Girişi";
+    }
+  }
+
+  async function verifyAdminStep1() {
+    await loadData();
+    const u = document.getElementById('admin-username').value.trim();
+    const p = document.getElementById('admin-password').value.trim();
+
+    if (appData.users[u] && appData.users[u].pass === p) {
+      if ((targetAdminRole === 'Basbakan' && u === 'Basbakan') || 
+          (targetAdminRole === 'MerkezBankasi' && u === 'MerkezBankasi')) {
+        currentUser = u;
+        start2FAProcess();
+      } else {
+        alert("Girdiğiniz hesap seçtiğiniz yönetim yetkisine sahip değil!");
+      }
+    } else {
+      alert("Yönetici kullanıcı adı veya şifre hatalı!");
+    }
+  }
+
+  function start2FAProcess() {
+    switchScreen('screen-admin-login', 'screen-2fa');
+    generateNewCodeAndSendEmail();
+    startTimer();
+  }
+
+  function generateNewCodeAndSendEmail() {
+    generated2FACode = Math.floor(100000 + Math.random() * 900000).toString();
+    document.getElementById('2fa-code-input').value = "";
+
+    const templateParams = {
+      to_email: 'cinargulmez34@gmail.com',
+      code: generated2FACode,
+      user_name: currentUser
+    };
+
+    emailjs.send('cinargulmez34@gmail.com', 'template_f71lsbb', templateParams)
+      .then(function(response) {
+         console.log('E-posta başarıyla gönderildi!');
+      }, function(error) {
+         console.log('E-posta gönderim hatası:', error);
+      });
+  }
+
+  function startTimer() {
+    clearInterval(timerInterval);
+    timeLeft = 120;
+    document.getElementById('2fa-timer').innerText = timeLeft;
+
+    timerInterval = setInterval(() => {
+      timeLeft--;
+      if(document.getElementById('2fa-timer')) {
+        document.getElementById('2fa-timer').innerText = timeLeft;
+      }
+      if (timeLeft <= 0) {
+        clearInterval(timerInterval);
+        alert("Kodun süresi doldu! Yeni kod e-posta adresinize tekrar gönderiliyor.");
+        generateNewCodeAndSendEmail();
+        startTimer();
+      }
+    }, 1000);
+  }
+
+  function resend2FACode() {
+    generateNewCodeAndSendEmail();
+    startTimer();
+    alert("Yeni kod cinargulmez34@gmail.com adresine tekrar gönderildi!");
+  }
+
+  function verify2FACode() {
+    const inputCode = document.getElementById('2fa-code-input').value.trim();
+
+    if (inputCode === generated2FACode && timeLeft > 0) {
+      clearInterval(timerInterval);
+      localStorage.setItem('dunyabank_logged_user', currentUser);
+      switchScreen('screen-2fa', 'screen-dashboard');
+      showDashboard();
+      startLiveSync();
+    } else {
+      alert("Hatalı veya süresi geçmiş kod!");
+    }
+  }
+
+  async function handleLogin() {
+    await loadData();
+    const u = document.getElementById('login-username').value.trim();
+    const p = document.getElementById('login-password').value.trim();
+
+    if (appData.users[u] && appData.users[u].pass === p) {
+      if (appData.users[u].role !== 'user') {
+        alert("Yönetim hesapları için lütfen aşağıdaki Kurum Giriş butonlarını kullanın!");
+        return;
+      }
+      currentUser = u;
+      localStorage.setItem('dunyabank_logged_user', currentUser);
+      switchScreen('screen-login', 'screen-dashboard');
+      showDashboard();
+      startLiveSync();
+    } else {
+      alert("Kullanıcı adı veya şifre hatalı!");
+    }
+  }
+
+  async function handleRegister() {
+    await loadData();
+    const u = document.getElementById('reg-username').value.trim();
+    const p = document.getElementById('reg-password').value.trim();
+
+    if (!u || !p) { alert("Lütfen kullanıcı adı ve şifre belirleyin!"); return; }
+    if (appData.users[u]) { alert("Bu kullanıcı adı zaten kullanılıyor!"); return; }
+
+    appData.users[u] = { pass: p, balance: 1000, role: 'user', job: 'Vatandaş' };
+    await saveData();
+    alert("Kayıt başarılı! 1000 ₺ başlangıç bakiyesi hesabınıza tanımlandı.");
+    currentUser = u;
+    localStorage.setItem('dunyabank_logged_user', currentUser);
+    switchScreen('screen-register', 'screen-dashboard');
+    showDashboard();
+    startLiveSync();
+  }
+
+  function showDashboard() {
+    if (!currentUser || !appData.users[currentUser]) return;
+
+    const userData = appData.users[currentUser];
+    document.getElementById('welcome-text').innerText = `Hoş Geldin, ${currentUser}`;
+    document.getElementById('user-balance').innerText = userData.balance;
+
+    const badge = document.getElementById('user-badge');
+    const jobBadge = document.getElementById('job-badge');
+    const card = document.getElementById('balance-card');
+    
+    const govJobAssign = document.getElementById('section-gov-job-assign');
+    const penaltyActions = document.getElementById('section-penalty-actions');
+
+    card.className = 'card-balance';
+    govJobAssign.classList.add('hidden');
+    penaltyActions.classList.add('hidden');
+
+    jobBadge.innerText = userData.job || 'Vatandaş';
+
+    if (userData.role === 'gov') {
+      badge.innerText = '🏛️ Başbakanlık';
+      badge.className = 'badge badge-gov';
+      card.classList.add('gov');
+      govJobAssign.classList.remove('hidden');
+      penaltyActions.classList.remove('hidden');
+    } else if (userData.role === 'bank') {
+      badge.innerText = '🏦 Merkez Bankası';
+      badge.className = 'badge badge-bank';
+      card.classList.add('bank');
+    } else {
+      badge.innerText = '👤 Şehir Sakini';
+      badge.className = 'badge badge-user';
+
+      if (userData.job === 'Emniyet Personeli' || userData.job === 'Trafik Şube') {
+        penaltyActions.classList.remove('hidden');
+      }
+    }
+
+    renderLogs();
+  }
+
+  async function assignJobToUser() {
+    const targetUser = document.getElementById('assign-user').value.trim();
+    const selectedJob = document.getElementById('assign-job').value;
+
+    await loadData();
+    if (!targetUser || !appData.users[targetUser]) {
+      alert("Belirtilen kullanıcı sistemde bulunamadı!");
+      return;
+    }
+
+    appData.users[targetUser].job = selectedJob;
+    appData.logs.unshift({
+      time: new Date().toLocaleTimeString(),
+      text: `🏛️ ATAMA: ${targetUser} kullanıcısına "${selectedJob}" mesleği verildi.`
+    });
+
+    await saveData();
+    alert(`${targetUser} adlı kullanıcıya başarıyla "${selectedJob}" mesleği atandı!`);
+    document.getElementById('assign-user').value = "";
+    showDashboard();
+  }
+
+  async function sendMoney() {
+    const target = document.getElementById('transfer-target').value.trim();
+    const amount = parseFloat(document.getElementById('transfer-amount').value);
+
+    await loadData();
+    if (!target || !appData.users[target]) { alert("Alıcı kullanıcı bulunamadı!"); return; }
+    if (isNaN(amount) || amount <= 0) { alert("Geçersiz miktar!"); return; }
+    if (appData.users[currentUser].balance < amount) { alert("Yetersiz bakiye!"); return; }
+
+    appData.users[currentUser].balance -= amount;
+    appData.users[target].balance += amount;
+
+    appData.logs.unshift({
+      time: new Date().toLocaleTimeString(),
+      text: `💸 ${currentUser} -> ${target}: ${amount} ₺`
+    });
+
+    await saveData();
+    document.getElementById('transfer-target').value = "";
+    document.getElementById('transfer-amount').value = "";
+    showDashboard();
+    alert("Transfer başarılı!");
+  }
+
+  function openQRGenerateModal() {
+    document.getElementById('qr-create-amount').value = "";
+    document.getElementById('qr-code-display').innerHTML = "";
+    document.getElementById('qr-code-display').classList.add('hidden');
+    document.getElementById('qr-status-text').classList.add('hidden');
+    switchScreen('screen-dashboard', 'screen-qr-generate');
+  }
+
+  function generateQRCodeNow() {
+    const amount = parseFloat(document.getElementById('qr-create-amount').value);
+    if (isNaN(amount) || amount <= 0) {
+      alert("Lütfen geçerli bir miktar girin!");
+      return;
+    }
+
+    const qrBox = document.getElementById('qr-code-display');
+    qrBox.innerHTML = "";
+    qrBox.classList.remove('hidden');
+    document.getElementById('qr-status-text').classList.remove('hidden');
+
+    const qrData = JSON.stringify({ receiver: currentUser, amount: amount });
+
+    new QRCode(qrBox, {
+      text: qrData,
+      width: 170,
+      height: 170
+    });
+  }
+
+  function openQRScannerModal() {
+    switchScreen('screen-dashboard', 'screen-qr-scan');
+    
+    html5QrcodeScanner = new Html5QrcodeScanner(
+      "reader", { fps: 10, qrbox: 220 }
+    );
+
+    html5QrcodeScanner.render(onScanSuccess, onScanError);
+  }
+
+  async function onScanSuccess(decodedText) {
+    try {
+      const parsedData = JSON.parse(decodedText);
+      const receiver = parsedData.receiver;
+      const amount = parseFloat(parsedData.amount);
+
+      if (!receiver || isNaN(amount)) {
+        throw new Error("Geçersiz QR Kod");
+      }
+
+      if (receiver === currentUser) {
+        alert("Kendi oluşturduğunuz QR kodu okutamazsınız!");
+        closeQRScanner();
+        return;
+      }
+
+      closeQRScanner();
+
+      await loadData();
+      if (appData.users[currentUser].balance < amount) {
+        alert("Yetersiz bakiye! QR Ödeme başarısız.");
+        return;
+      }
+
+      appData.users[currentUser].balance -= amount;
+      appData.users[receiver].balance += amount;
+
+      appData.logs.unshift({
+        time: new Date().toLocaleTimeString(),
+        text: `📷 QR ÖDEME: ${currentUser} -> ${receiver}: ${amount} ₺`
+      });
+
+      await saveData();
+      showDashboard();
+      alert(`📷 ${receiver} kişisine QR Kod ile ${amount} ₺ başarıyla ödendi!`);
+
+    } catch (e) {
+      alert("Okutulan QR Kod geçerli bir DünyaBank ödeme kodu değil!");
+      closeQRScanner();
+    }
+  }
+
+  function onScanError(errorMessage) {}
+
+  function closeQRScanner() {
+    if (html5QrcodeScanner) {
+      html5QrcodeScanner.clear().catch(error => console.error("Kamera kapatılamadı", error));
+    }
+    switchScreen('screen-qr-scan', 'screen-dashboard');
+  }
+
+  async function issuePenalty() {
+    const target = document.getElementById('penalty-target').value.trim();
+    const amount = parseFloat(document.getElementById('penalty-amount').value);
+    const reason = document.getElementById('penalty-reason').value.trim() || 'Genel İhlal';
+
+    await loadData();
+    if (!target || !appData.users[target]) { alert("Ceza kesilecek kullanıcı bulunamadı!"); return; }
+    if (isNaN(amount) || amount <= 0) { alert("Geçersiz ceza miktarı!"); return; }
+
+    appData.users[target].balance -= amount;
+    appData.users['MerkezBankasi'].balance += amount;
+
+    appData.logs.unshift({
+      time: new Date().toLocaleTimeString(),
+      text: `🚨 CEZA (${currentUser} - ${appData.users[currentUser].job || 'Yetkili'}): ${target} kişisine ${amount} ₺ ceza kesildi! (Sebep: ${reason})`
+    });
+
+    await saveData();
+    document.getElementById('penalty-target').value = "";
+    document.getElementById('penalty-amount').value = "";
+    document.getElementById('penalty-reason').value = "";
+    showDashboard();
+    alert(`${target} adlı kullanıcıya ${amount} ₺ ceza uygulandı ve tahsilat TCMB hesabına aktarıldı!`);
+  }
+
+  function renderLogs() {
+    const container = document.getElementById('history-container');
+    if (!appData.logs || appData.logs.length === 0) {
+      container.innerHTML = '<div class="history-item">Henüz kayıt yok.</div>';
+      return;
+    }
+    container.innerHTML = appData.logs.map(l => `<div class="history-item"><span>${l.text}</span> <small style="color: var(--text-dim);">${l.time}</small></div>`).join('');
+  }
+
+  function handleLogout() {
+    currentUser = null;
+    localStorage.removeItem('dunyabank_logged_user');
+    if (syncInterval) clearInterval(syncInterval);
+    clearInterval(timerInterval);
+    switchScreen('screen-dashboard', 'screen-login');
+  }
+
+  async function initApp() {
+    await loadData();
+    const savedUser = localStorage.getItem('dunyabank_logged_user');
+    if (savedUser && appData.users[savedUser]) {
+      currentUser = savedUser;
+      switchScreen('screen-login', 'screen-dashboard');
+      showDashboard();
+      startLiveSync();
+    }
+  }
+
+  initApp();
+</script>
+
+</body>
+</html>
